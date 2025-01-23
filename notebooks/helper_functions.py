@@ -1,6 +1,6 @@
 import pandas as pd
 
-def create_ratings_df(ratings, fill_value=None):
+def create_user_item_matrix(ratings, fill_value=None):
     """
     Pivot the user-movie ratings into a DataFrame, also known as a user-item matrix.
 
