@@ -88,3 +88,75 @@ def get_top_ten_similar_movies(similar_movies, movies, movie_id):
     top_ten.set_index('movieId', inplace=True)
 
     return top_ten
+
+
+class DataTransformer():
+    
+    def __init__(self,
+                data_path="../data/ml-latest-small/"):
+
+        self.data_path = data_path
+        
+        self._ratings_df = pd.DataFrame()
+        self._movies_df = pd.DataFrame()
+        self._links_df = pd.DataFrame()
+        self._genres_encoded_df = pd.DataFrame()
+        self._genres_list = []
+        
+        self._load_movie_lens_data()
+        self._create_binary_encoded_genres()
+        self._create_genres_list()
+        
+    def _load_movie_lens_data(self):
+        self._ratings_df = pd.read_csv(
+            self.data_path+'ratings.csv',
+            usecols=['userId', 'movieId', 'rating', 'timestamp'],
+            dtype={'userId': int, 'movieId': int, 'rating': float},
+            parse_dates=['timestamp'],  
+            converters={'timestamp': lambda x: pd.to_datetime(int(x), unit='s')}
+        )
+        
+        self._movies_df = pd.read_csv(
+            self.data_path+'movies.csv',
+            usecols=['movieId', 'title', 'genres'],
+            dtype={'movieId': int, 'title': str, 'genres': str}
+        )
+        # Move the year values to a separate col
+        self._movies_df["year"] = self._movies_df["title"].str.extract(r"\((\d{4})\)")
+        self._movies_df["title"] = self._movies_df["title"].str.replace(r"\(\d{4}\)", "", regex=True).str.strip()
+        self._movies_df["year"] = self._movies_df["year"].astype(float).astype("Int64")
+        
+        self._links_df = pd.read_csv(
+            self.data_path+'links.csv', 
+            usecols=['movieId', 'imdbId', 'tmdbId'],
+            dtype={'movieId': int, 'imdbId': str, 'tmdbId': str}
+        )
+
+    def _create_binary_encoded_genres(self):
+        self._genres_encoded_df = self._movies_df['genres'].str.get_dummies(sep='|')
+        self._genres_encoded_df = pd.concat([self._movies_df[['movieId']], self._genres_encoded_df], axis=1)
+        self._movies_df.drop('genres', axis=1, inplace=True)
+
+    def _create_genres_list(self):
+        self._genres_list = [genre for genre in self._genres_encoded_df.columns.values if genre != 'movieId']
+
+    def get_ratings_df(self):
+        return self._ratings_df.copy()
+        
+    def get_movies_df(self):
+        return self._movies_df.copy()
+        
+    def get_links_df(self):
+        return self._links_df.copy()
+
+    def get_binary_encoded_genres_df(self):
+        return self._genres_encoded_df.copy()
+
+    def get_genres_list(self):
+        return self._genres_list.copy()
+
+    def get_genre_movies(self, genre):
+        if genre not in self._genres_list:
+            print(f"Please specify a valid genre from the following list: {', '.join(self._genres_list)}")
+            return None
+        return self._movies_df[self._movies_df.movieId.isin(self._genres_encoded_df[self._genres_encoded_df[genre]==1].movieId)].copy()
